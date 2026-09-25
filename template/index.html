@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#EDF0EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101820" media="(prefers-color-scheme: dark)">
+<title>Phil — Recomp Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDF0EE; --sheet:#F8F9F7; --ink:#18263A; --ink2:#4B5A6E; --faint:#9AA6B2; --grid:#D9DFDC;
+  --fat:#9B2F3F; --lean:#1F6F6B; --gold:#B8891C; --blue:#2F5C9E; --good:#2E7D4F; --bad:#9B2F3F;
+  --display:'Barlow Condensed','Arial Narrow',Arial,sans-serif; --body:'Public Sans',system-ui,-apple-system,Segoe UI,sans-serif;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#101820; --sheet:#16212C; --ink:#E4E9EE; --ink2:#A7B3C0; --faint:#5E6C7A; --grid:#243241;
+  --fat:#E0707F; --lean:#4FB8AE; --gold:#E0B64A; --blue:#7FA6E0; --good:#5CC486; --bad:#E0707F; }}
+:root[data-theme="dark"]{ --paper:#101820; --sheet:#16212C; --ink:#E4E9EE; --ink2:#A7B3C0; --faint:#5E6C7A; --grid:#243241;
+  --fat:#E0707F; --lean:#4FB8AE; --gold:#E0B64A; --blue:#7FA6E0; --good:#5CC486; --bad:#E0707F; }
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 56px);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent}
+main{max-width:1040px;margin:0 auto;padding:18px 16px 48px}
+h1,h2{font-family:var(--display);font-weight:700;margin:0}
+h1{font-size:clamp(32px,7vw,54px);line-height:1}
+h2{font-size:24px;line-height:1.1}
+.sub{color:var(--ink2);font-size:14px;margin:4px 0 0;max-width:68ch}
+section{margin-top:32px}
+.panel{background:var(--sheet);border-radius:14px;padding:14px;margin-top:10px}
+@media (min-width:700px){.panel{padding:20px} main{padding:28px 24px 60px} section{margin-top:44px}}
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.asof{color:var(--ink2);font-size:13px}
+/* jump nav */
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);margin:14px -16px 0;padding:8px 16px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav a{flex:none;color:var(--ink);text-decoration:none;font-size:14px;padding:8px 14px;min-height:40px;display:flex;align-items:center;border-radius:999px;background:var(--sheet);border:1px solid var(--grid)}
+nav a:active{background:var(--grid)}
+/* hero */
+.verdict{font-family:var(--display);font-weight:600;font-size:clamp(26px,6.4vw,34px);line-height:1.12;margin:14px 0 6px;max-width:28ch}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:14px 12px;margin-top:14px}
+@media (min-width:700px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat b{display:block;font-family:var(--display);font-size:28px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.stat span{color:var(--ink2);font-size:13px;line-height:1.35;display:block;margin-top:4px}
+.fresh{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{border-radius:999px;padding:6px 12px;font-size:13px;border:1px solid var(--grid)}
+.chip.stale{border-color:var(--bad);color:var(--bad)}
+.chip.ok{border-color:var(--good);color:var(--good)}
+.more{margin-top:10px}
+.more summary{cursor:pointer;color:var(--blue);font-size:14px;min-height:40px;display:flex;align-items:center;list-style:none}
+.more summary::-webkit-details-marker{display:none}
+.more summary::after{content:'+';margin-left:8px;font-weight:600}
+.more[open] summary::after{content:'–'}
+.more p{color:var(--ink2);font-size:14px;margin:4px 0 0;max-width:68ch}
+/* moves */
+.moves{counter-reset:m;list-style:none;padding:0;margin:0}
+.moves li{counter-increment:m;position:relative;padding:12px 0 12px 38px;border-top:1px solid var(--grid);font-size:14px;color:var(--ink2)}
+.moves li:first-child{border-top:0;padding-top:4px}
+.moves li:first-child::before{top:0}
+.moves li::before{content:counter(m);position:absolute;left:2px;top:8px;font-family:var(--display);font-size:28px;font-weight:700;color:var(--gold)}
+.moves strong{display:block;color:var(--ink);font-size:16px;margin-bottom:2px}
+/* charts */
+.chart{width:100%;display:block;touch-action:pan-y}
+svg text{font-family:var(--body);fill:var(--ink2);font-size:11px}
+svg .big{font-family:var(--display);font-size:16px;font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink2);margin-top:8px}
+.legend i{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.readout{min-height:22px;font-size:13px;color:var(--ink2);margin-top:6px;font-variant-numeric:tabular-nums}
+.readout b{color:var(--ink)}
+.two{display:grid;grid-template-columns:1fr;gap:10px}
+@media (min-width:760px){.two{grid-template-columns:1fr 1fr;gap:14px}}
+.ptitle{font-weight:600;font-size:15px}
+/* sessions as list */
+.sess{list-style:none;padding:0;margin:0}
+.sess li{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;padding:10px 0;border-top:1px solid var(--grid);align-items:center}
+.sess li:first-child{border-top:0}
+.sess .dot{width:9px;height:9px;border-radius:50%}
+.sess .name{font-weight:500}
+.sess .when{color:var(--ink2);font-size:13px;text-align:right}
+.sess .meta{grid-column:2 / 4;color:var(--ink2);font-size:13px;font-variant-numeric:tabular-nums}
+.note-s{font-size:13px;color:var(--ink2);margin:10px 0 0}
+.form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end}
+.form label{display:flex;flex-direction:column;font-size:13px;color:var(--ink2);gap:4px}
+.form input{font:inherit;font-size:16px;padding:10px;border-radius:10px;border:1px solid var(--grid);background:var(--paper);color:var(--ink);min-height:44px;width:100%}
+.form button{grid-column:1 / -1;font:inherit;font-weight:600;min-height:44px;border-radius:10px;border:0;background:var(--ink);color:var(--paper);cursor:pointer}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+</head>
+<body>
+<main>
+  <div class="head"><h1>Recomp Lab</h1><div class="asof" id="asof"></div></div>
+  <nav aria-label="Sections"><a href="#moves-s">This week</a><a href="#trend-s">Trend</a><a href="#comp-s">Fat vs lean</a><a href="#season-s">Fall</a><a href="#habits-s">Habits</a><a href="#recovery-s">Recovery</a><a href="#sleep-s">Sleep</a><a href="#strength-s">Strength</a><a href="#tape-s">Tape check</a><a href="#sessions-s">Sessions</a></nav>
+
+  <p class="verdict" id="verdict"></p>
+  <div class="panel">
+    <svg class="chart" id="ledger" role="img" aria-label="Daily calories: what you eat, measured burn, and Garmin's estimate"></svg>
+    <div class="stats" id="heroStats"></div>
+    <details class="more"><summary>How this was worked out</summary><p id="verdictSub"></p></details>
+  </div>
+  <div class="fresh" id="fresh"></div>
+
+  <section id="moves-s">
+    <h2>This week</h2>
+    <div class="panel"><ol class="moves" id="moves"></ol></div>
+  </section>
+
+  <section id="trend-s">
+    <h2>Trend weight</h2>
+    <p class="sub">Dots are weigh-ins; the line filters out water and sodium. Tap the chart to read a day.</p>
+    <div class="panel"><svg class="chart" id="trend"></svg><div class="readout" id="trendRead"></div>
+      <div class="legend"><span><i style="background:var(--ink)"></i>Trend</span><span><i style="background:var(--gold);opacity:.4;height:10px"></i>Cut</span><span><i style="background:var(--lean);opacity:.4;height:10px"></i>Bulk</span></div>
+    </div>
+  </section>
+
+  <section id="comp-s">
+    <h2>Fat vs lean</h2>
+    <p class="sub">7-day averages of weight × body fat %, so single hydration swings don't count.</p>
+    <div class="two">
+      <div class="panel"><div class="ptitle">Fat mass</div><svg class="chart" id="fatChart"></svg></div>
+      <div class="panel"><div class="ptitle">Lean mass</div><svg class="chart" id="leanChart"></svg></div>
+    </div>
+  </section>
+
+  <section id="season-s">
+    <h2>Fall, five years running</h2>
+    <p class="sub">Monthly average, July to January. Every prior year climbed from its September low.</p>
+    <div class="panel"><svg class="chart" id="season"></svg><div class="legend" id="seasonLegend"></div></div>
+  </section>
+
+  <section id="habits-s">
+    <h2>The two habits that decide it</h2>
+    <p class="sub">Per week, Monday to Sunday. Targets: 2 lifts, 5 logged days.</p>
+    <div class="panel"><svg class="chart" id="habits"></svg>
+      <div class="legend"><span><i style="background:var(--blue);height:10px"></i>Lifts</span><span><i style="background:var(--gold);height:10px"></i>Days logged</span></div>
+    </div>
+  </section>
+
+  <section id="recovery-s">
+    <h2>Recovery</h2>
+    <div class="two">
+      <div class="panel"><div class="ptitle">Resting heart rate</div><svg class="chart" id="rhrChart"></svg></div>
+      <div class="panel"><div class="ptitle">Overnight HRV</div><svg class="chart" id="hrvChart"></svg></div>
+    </div>
+  </section>
+
+
+  <section id="sleep-s">
+    <h2>Sleep rhythm</h2>
+    <p class="sub">Each bar is one night, from falling asleep to waking. Thursday, Friday and Saturday nights are gold.</p>
+    <div class="panel"><svg class="chart" id="sleepChart"></svg><div class="stats" id="sleepStats"></div></div>
+  </section>
+
+  <section id="strength-s">
+    <h2>Strength benchmarks</h2>
+    <p class="sub">Estimated one-rep max from the weights in your Push/Pull plan (weight × (1 + reps ÷ 30)). These are the numbers the bulk should move.</p>
+    <div class="panel"><ul class="sess" id="lifts"></ul>
+      <p class="note-s">Your gym sessions are saved on the watch as <b>Cardio</b>, so Garmin records no sets or weights. Start them as <b>Strength</b> instead and log each set; then this section can track real progress per lift.</p></div>
+  </section>
+
+  <section id="tape-s">
+    <h2>Tape-measure check</h2>
+    <p class="sub">A second opinion on body fat that doesn't depend on hydration. Measure your waist at the navel and neck just below the Adam's apple, first thing in the morning.</p>
+    <div class="panel">
+      <div class="form">
+        <label>Waist (in)<input id="waist" type="number" inputmode="decimal" step="0.25" min="20" max="60"></label>
+        <label>Neck (in)<input id="neck" type="number" inputmode="decimal" step="0.25" min="10" max="25"></label>
+        <label>Height (in)<input id="height" type="number" inputmode="decimal" step="0.25" value="73"></label>
+        <button id="tapeSave" type="button">Calculate</button>
+      </div>
+      <div class="readout" id="tapeOut">Height is prefilled at 73 in, worked out from your scale's BMI. Readings are saved on this device only; send them to me to add them to the dashboard for good.</div>
+      <ul class="sess" id="tapeLog"></ul>
+    </div>
+  </section>
+
+  <section id="sessions-s">
+    <h2>Sessions</h2>
+    <div class="panel"><ul class="sess" id="log"></ul>
+      <details class="more"><summary>Show all sessions</summary><ul class="sess" id="logAll"></ul></details>
+    </div>
+    <details class="more"><summary>How the numbers are made</summary><p>Measured burn = average logged intake minus the change in trend weight (3,500 calories per pound), using only fully logged days. Unlogged snacks or weekends make both intake and measured burn look lower. Garmin's number is its daily total-burn estimate. Fat and lean mass come from the scale's body-fat reading, which moves with hydration, so trust the 7-day averages over any single day.</p></details>
+  </section>
+</main>
+<script>
+const DATA = __DATA__;
+const NS='http://www.w3.org/2000/svg';
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const D=s=>new Date(s+'T12:00:00');
+const iso=d=>d.toISOString().slice(0,10);
+const days=(a,b)=>Math.round((D(b)-D(a))/864e5);
+const fmt=n=>Math.round(n).toLocaleString();
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const md=s=>{const d=D(s);return MON[d.getMonth()]+' '+d.getDate();};
+function el(svg,tag,attrs,text){const n=document.createElementNS(NS,tag);for(const k in attrs)n.setAttribute(k,attrs[k]);if(text!=null)n.textContent=text;svg.appendChild(n);return n;}
+function canvas(id,hMobile,hDesk){const s=document.getElementById(id);s.innerHTML='';const W=Math.max(280,Math.round(s.getBoundingClientRect().width));const H=W<600?hMobile:hDesk;s.setAttribute('viewBox',`0 0 ${W} ${H}`);s.setAttribute('height',H);return {s,W,H,narrow:W<600};}
+
+// ---------- derived data ----------
+const today=iso(new Date());
+const weighins=DATA.daily.filter(x=>x.w&&!x.pm).sort((a,b)=>a.d<b.d?-1:1);
+const trend={};(function(){let t=null;const by={};weighins.forEach(x=>by[x.d]=x.w);
+  for(let d=D(weighins[0].d);iso(d)<=weighins[weighins.length-1].d;d=new Date(d.getTime()+864e5)){const k=iso(d);if(by[k]!=null)t=t==null?by[k]:t+0.1*(by[k]-t);trend[k]=t;}})();
+const lastW=weighins[weighins.length-1];
+const bulkStart=DATA.phases.find(p=>p.name==='Bulk').from;
+const intakeDays=Object.entries(DATA.intake).filter(([d,v])=>v!=null&&v>1500&&d>=bulkStart&&d<=lastW.d);
+const avgIntake=intakeDays.reduce((s,[,v])=>s+v,0)/intakeDays.length;
+const bw=weighins.filter(x=>x.d>=bulkStart);
+const xs=bw.map(x=>days(bulkStart,x.d)),ys=bw.map(x=>x.w);
+const mx=xs.reduce((a,b)=>a+b)/xs.length,my=ys.reduce((a,b)=>a+b)/ys.length;
+const slope=xs.reduce((s,x,i)=>s+(x-mx)*(ys[i]-my),0)/xs.reduce((s,x)=>s+(x-mx)**2,0);
+const trendSlope=(trend[lastW.d]-trend[bulkStart])/days(bulkStart,lastW.d);
+const burnLo=avgIntake-Math.max(slope,trendSlope)*3500, burnHi=avgIntake-Math.min(slope,trendSlope)*3500, burnMid=(burnLo+burnHi)/2;
+const gBurns=DATA.daily.filter(x=>x.burn&&x.d>=bulkStart);
+const garmin=gBurns.reduce((s,x)=>s+x.burn,0)/gBurns.length;
+const surplus=avgIntake-burnMid;
+const target=[Math.round((burnMid+250)/50)*50,Math.round((burnMid+400)/50)*50];
+const monday=s=>{const d=D(s);const off=(d.getDay()+6)%7;return iso(new Date(d.getTime()-off*864e5));};
+const weekKeys=[];for(let d=D(monday('2026-06-29'));iso(d)<=today;d=new Date(d.getTime()+7*864e5))weekKeys.push(iso(d));
+const lifts={},logs={};
+DATA.workouts.forEach(w=>{if(w.kind==='lift'){const k=monday(w.date);lifts[k]=(lifts[k]||0)+1;}});
+Object.keys(DATA.intake).forEach(d=>{const k=monday(d);logs[k]=(logs[k]||0)+1;});
+const thisWeek=monday(today);
+const lastLift=DATA.workouts.filter(w=>w.kind==='lift').map(w=>w.date).sort().pop();
+const lastLog=Object.keys(DATA.intake).sort().pop();
+const past=weekKeys.filter(k=>k!==thisWeek&&k>=monday(bulkStart));const hitWeeks=past.filter(k=>(lifts[k]||0)>=2).length;
+let liftGap=0;for(let i=weekKeys.length-1;i>=0;i--){if(weekKeys[i]===thisWeek)continue;if((lifts[weekKeys[i]]||0)===0)liftGap++;else break;}
+
+// ---------- static text ----------
+document.getElementById('asof').textContent=`Updated ${md(today)}, bulk day ${days(bulkStart,today)+1}`;
+document.getElementById('verdict').textContent=surplus>150?`The bulk is running a real surplus of about ${fmt(surplus)} calories a day.`
+  :surplus>-300?`So far the bulk is running at maintenance, not a surplus.`:`The bulk is running a deficit of about ${fmt(-surplus)} calories a day.`;
+document.getElementById('verdictSub').textContent=`Across ${intakeDays.length} fully logged days since ${md(bulkStart)} you averaged ${fmt(avgIntake)} calories, and trend weight moved ${(trend[lastW.d]-trend[bulkStart]).toFixed(1)} lbs. That puts your real daily burn near ${fmt(burnMid)}. Garmin estimates ${fmt(garmin)}, about ${Math.round((garmin/burnMid-1)*100)}% high. The 2,200 target assumed maintenance was about 1,850; the data says it's closer to ${fmt(burnMid)}.`;
+document.getElementById('heroStats').innerHTML=[
+ [`${fmt(target[0])}–${fmt(target[1])}`,`calories a day for a real lean bulk`],
+ [`${lifts[thisWeek]||0} of 2`,`lifts this week; last one ${md(lastLift)}`],
+ [`${trend[lastW.d].toFixed(1)}`,`trend weight (last weigh-in ${md(lastW.d)})`],
+ [`${(trend[lastW.d]-203.3).toFixed(1)}`,`lbs since the cut began Apr 14`]
+].map(([a,b])=>`<div class="stat"><b>${a}</b><span>${b}</span></div>`).join('');
+const fr=[[`Weigh-in ${days(lastW.d,today)}d ago`,days(lastW.d,today)>3],[`Food log ${days(lastLog,today)}d ago`,days(lastLog,today)>3],[`Last lift ${days(lastLift,today)}d ago`,days(lastLift,today)>7]];
+document.getElementById('fresh').innerHTML=fr.map(([t,st])=>`<span class="chip ${st?'stale':'ok'}">${t}</span>`).join('');
+const moves=[];
+if(surplus<150)moves.push([`Eat ${fmt(target[0])}–${fmt(target[1])} a day, not 2,200.`,`2,200 has been maintenance or just under. Add the extra as carbs around lifting days; keep protein at 180–190 g. Trend weight should then rise 0.25–0.5 lb a week.`]);
+moves.push(liftGap>=1?[`Book two lifts this week.`,`${liftGap} full week${liftGap>1?'s':''} without lifting since ${md(lastLift)}; 2-a-week was hit in ${hitWeeks} of ${past.length} weeks. Without it, a surplus mostly adds fat.`]:[`Keep the 2-a-week lifting rhythm.`,`It's the lever for the lean-mass goal.`]);
+if(days(lastW.d,today)>3||days(lastLog,today)>3)moves.push([`Send a scale export and a Garmin export.`,`Weigh-ins are ${days(lastW.d,today)} days old and the food log ${days(lastLog,today)}. October is when the climb usually starts.`]);
+document.getElementById('moves').innerHTML=moves.map(([a,b])=>`<li><strong>${a}</strong>${b}</li>`).join('');
+const kindColor=()=>({lift:css('--blue'),cardio:css('--lean'),walk:css('--faint')});
+const item=w=>`<li><span class="dot" style="background:${kindColor()[w.kind]}"></span><span class="name">${w.type}</span><span class="when">${md(w.date)}</span><span class="meta">${w.duration} min · ${w.cal??'—'} cal${w.avgHR?` · HR ${w.avgHR}/${w.maxHR}`:''}</span></li>`;
+const ws=[...DATA.workouts].sort((a,b)=>a.date<b.date?1:-1);
+document.getElementById('log').innerHTML=ws.slice(0,6).map(item).join('');
+document.getElementById('logAll').innerHTML=ws.slice(6).map(item).join('');
+
+// ---------- chart helpers ----------
+function axisY(s,ticks,y,x0,x1){ticks.forEach(t=>{el(s,'line',{x1:x0,x2:x1,y1:y(t),y2:y(t),stroke:css('--grid')});el(s,'text',{x:x0-6,y:y(t)+4,'text-anchor':'end'},t);});}
+function monthTicks(s,from,to,x,yb,every=1){const W=+s.getAttribute('viewBox').split(' ')[2];let i=0;for(let d=new Date(D(from).getFullYear(),D(from).getMonth()+1,1);d<=D(to);d=new Date(d.getFullYear(),d.getMonth()+1,1)){const px=x(iso(d));if(i++%every===0)el(s,'text',{x:px,y:yb,'text-anchor':px>W-16?'end':'middle'},MON[d.getMonth()]);}}
+function rolling(key){const pts=weighins.filter(w=>w.bf);return pts.map(p=>{const win=pts.filter(q=>days(q.d,p.d)>=0&&days(q.d,p.d)<7);return [p.d,win.reduce((s,q)=>s+(key==='fat'?q.w*q.bf/100:q.w*(1-q.bf/100)),0)/win.length];});}
+
+function drawLedger(){const {s,W,H,narrow}=canvas('ledger',128,140);
+  const vals=[avgIntake,burnMid,garmin,target[0],target[1]];const lo=Math.floor((Math.min(...vals)-250)/250)*250,hi=Math.ceil((Math.max(...vals)+200)/250)*250;
+  const pad=narrow?18:30;const x=v=>pad+(v-lo)/(hi-lo)*(W-2*pad);const cy=62;
+  el(s,'line',{x1:pad,x2:W-pad,y1:cy,y2:cy,stroke:css('--grid'),'stroke-width':10,'stroke-linecap':'round'});
+  el(s,'rect',{x:x(target[0]),y:cy-9,width:x(target[1])-x(target[0]),height:18,rx:5,fill:'none',stroke:css('--gold'),'stroke-width':2,'stroke-dasharray':'4 3'});
+  el(s,'text',{x:(x(target[0])+x(target[1]))/2,y:cy+26,'text-anchor':'middle',style:`fill:${css('--gold')};font-weight:600`},'target');
+  const anchor=v=>x(v)<60?'start':x(v)>W-60?'end':'middle';
+  const mark=(v,label,color,up)=>{el(s,'line',{x1:x(v),x2:x(v),y1:up?cy-26:cy,y2:up?cy:cy+32,stroke:color,'stroke-width':2.5});el(s,'circle',{cx:x(v),cy,r:6,fill:color});
+    el(s,'text',{x:x(v),y:up?cy-44:cy+50,'text-anchor':anchor(v),class:'big',style:`fill:${color}`},fmt(v));
+    el(s,'text',{x:x(v),y:up?cy-30:cy+64,'text-anchor':anchor(v)},label);};
+  mark(avgIntake,'you eat',css('--ink'),true);mark(garmin,'Garmin says',css('--fat'),true);mark(burnMid,'you burn',css('--lean'),false);}
+function drawTrend(){const {s,W,H,narrow}=canvas('trend',230,300);const L=34,R=10,T=12,B=24;const from=narrow?'2026-06-01':'2026-04-01',to=today>lastW.d?today:lastW.d;
+  const x=d=>L+days(from,d)/days(from,to)*(W-L-R);const pts=Object.entries(trend).filter(([d])=>d>=from);const wv=weighins.filter(w=>w.d>=from).map(w=>w.w);
+  const lo=Math.floor(Math.min(...wv)-1),hi=Math.ceil(Math.max(...wv)+1);const y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
+  DATA.phases.forEach(p=>{const a=p.from<from?from:p.from,b=p.to||to;if(b>=from)el(s,'rect',{x:x(a),y:T,width:x(b)-x(a),height:H-T-B,fill:p.name==='Cut'?css('--gold'):css('--lean'),opacity:.1});});
+  const step=(hi-lo)>8?2:1;const ticks=[];for(let t=lo+1;t<hi;t+=step)ticks.push(t);axisY(s,ticks,y,L,W-R);
+  weighins.filter(w=>w.d>=from).forEach(w=>el(s,'circle',{cx:x(w.d),cy:y(w.w),r:narrow?2.2:2.6,fill:css('--faint')}));
+  el(s,'polyline',{points:pts.map(([d,v])=>`${x(d)},${y(v)}`).join(' '),fill:'none',stroke:css('--ink'),'stroke-width':2.4,'stroke-linejoin':'round'});
+  if(days(lastW.d,today)>2)el(s,'line',{x1:x(lastW.d),x2:x(today),y1:y(trend[lastW.d]),y2:y(trend[lastW.d]),stroke:css('--faint'),'stroke-dasharray':'3 4'});
+  el(s,'circle',{cx:x(lastW.d),cy:y(trend[lastW.d]),r:4.5,fill:css('--ink')});
+  monthTicks(s,from,to,x,H-6);
+  const cursor=el(s,'line',{x1:0,x2:0,y1:T,y2:H-B,stroke:css('--blue'),'stroke-width':1.5,opacity:0});const out=document.getElementById('trendRead');
+  const show=clientX=>{const r=s.getBoundingClientRect();const px=(clientX-r.left)*W/r.width;const n=Math.round((px-L)/(W-L-R)*days(from,to));const d=iso(new Date(D(from).getTime()+n*864e5));
+    if(!trend[d]){return;}const wi=weighins.find(w=>w.d===d);cursor.setAttribute('x1',x(d));cursor.setAttribute('x2',x(d));cursor.setAttribute('opacity',.7);
+    out.innerHTML=`<b>${md(d)}</b>: trend ${trend[d].toFixed(1)}${wi?`, weighed ${wi.w}${wi.bf?` at ${wi.bf}% fat`:''}`:', no weigh-in'}`;};
+  s.onpointerdown=e=>show(e.clientX);s.onpointermove=e=>{if(e.pointerType==='mouse'||e.buttons)show(e.clientX);};
+  out.innerHTML=`<b>${md(lastW.d)}</b>: trend ${trend[lastW.d].toFixed(1)}, weighed ${lastW.w}${days(lastW.d,today)>2?` — no weigh-ins since`:''}`;}
+function drawComp(id,key,color,ticks,lo,hi){const {s,W,H,narrow}=canvas(id,160,190);const L=32,R=8,T=34,B=22;const ser=rolling(key);const from=narrow?'2026-06-01':'2026-04-01';const sr=ser.filter(([d])=>d>=from);const to=sr[sr.length-1][0];
+  const x=d=>L+days(from,d)/days(from,to)*(W-L-R);const y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
+  DATA.phases.forEach(p=>{const a=p.from<from?from:p.from,b=p.to&&p.to<to?p.to:to;if(b>=a)el(s,'rect',{x:x(a),y:T,width:x(b)-x(a),height:H-T-B,fill:p.name==='Cut'?css('--gold'):css('--lean'),opacity:.08});});
+  axisY(s,ticks,y,L,W-R);el(s,'polyline',{points:sr.map(([d,v])=>`${x(d)},${y(v)}`).join(' '),fill:'none',stroke:color,'stroke-width':2.4});
+  const l=ser[ser.length-1],b0=ser.find(([d])=>d>=bulkStart);el(s,'text',{x:0,y:16,class:'big',style:`fill:${color}`},`${l[1].toFixed(1)} lbs`);
+  el(s,'text',{x:W-R,y:16,'text-anchor':'end'},`${(l[1]-b0[1]>=0?'+':'')+(l[1]-b0[1]).toFixed(1)} since bulk began`);monthTicks(s,from,to,x,H-4);}
+function drawSeason(){const {s,W,H,narrow}=canvas('season',250,320);const L=34,R=narrow?40:60,T=12,B=24;const months=['Jul','Aug','Sep','Oct','Nov','Dec','Jan'];
+  const x=i=>L+i/6*(W-L-R);const lo=186,hi=210;const y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
+  axisY(s,narrow?[190,198,206]:[188,192,196,200,204,208],y,L,W-R);months.forEach((m,i)=>el(s,'text',{x:x(i),y:H-6,'text-anchor':'middle'},m));
+  const m26=['07','08','09','10','11','12'].map(mm=>{const v=weighins.filter(w=>w.d.startsWith('2026-'+mm));return v.length?v.reduce((a,q)=>a+q.w,0)/v.length:null;}).filter(v=>v!=null);
+  const cols={'2022':css('--faint'),'2023':css('--fat'),'2024':css('--blue'),'2025':css('--gold')};const leg=[];
+  const placed=[];Object.entries(DATA.season).sort((a,b)=>a[1][6]-b[1][6]).forEach(([yr,v])=>{el(s,'polyline',{points:v.map((a,i)=>`${x(i)},${y(a)}`).join(' '),fill:'none',stroke:cols[yr],'stroke-width':1.8,opacity:.8});
+    let ly=y(v[6])+4;placed.forEach(p=>{if(Math.abs(p-ly)<12)ly=p-12;});placed.push(ly);
+    el(s,'text',{x:x(6)+5,y:ly,style:`fill:${cols[yr]}`},narrow?"'"+yr.slice(2):yr);});
+  Object.keys(DATA.season).forEach(yr=>leg.push(`<span><i style="background:${cols[yr]}"></i>${yr}</span>`));
+  el(s,'polyline',{points:m26.map((v,i)=>`${x(i)},${y(v)}`).join(' '),fill:'none',stroke:css('--ink'),'stroke-width':4,'stroke-linecap':'round'});
+  m26.forEach((v,i)=>el(s,'circle',{cx:x(i),cy:y(v),r:4,fill:css('--ink')}));
+  el(s,'text',{x:x(m26.length-1)+8,y:y(m26[m26.length-1])-8,class:'big',style:`fill:${css('--ink')}`},'2026');
+  leg.push(`<span><i style="background:var(--ink);height:4px"></i>2026</span>`);document.getElementById('seasonLegend').innerHTML=leg.join('');}
+function drawHabits(){const {s,W,H,narrow}=canvas('habits',200,240);const L=22,R=6,T=10,B=34;const keys=narrow?weekKeys.slice(-8):weekKeys;const n=keys.length;const bw=(W-L-R)/n;const y=v=>T+(1-v/7)*(H-T-B);
+  [0,2,5,7].forEach(t=>{el(s,'line',{x1:L,x2:W-R,y1:y(t),y2:y(t),stroke:css('--grid')});el(s,'text',{x:L-5,y:y(t)+4,'text-anchor':'end'},t);});
+  el(s,'line',{x1:L,x2:W-R,y1:y(2),y2:y(2),stroke:css('--blue'),'stroke-dasharray':'5 4'});el(s,'line',{x1:L,x2:W-R,y1:y(5),y2:y(5),stroke:css('--gold'),'stroke-dasharray':'5 4'});
+  keys.forEach((k,i)=>{const cx=L+i*bw+bw/2;const a=lifts[k]||0,b=logs[k]||0;const w=Math.min(16,bw*.3);
+    if(a)el(s,'rect',{x:cx-w-2,y:y(a),width:w,height:y(0)-y(a),rx:3,fill:css('--blue')});
+    if(b)el(s,'rect',{x:cx+2,y:y(b),width:w,height:y(0)-y(b),rx:3,fill:css('--gold')});
+    if(!a&&!b)el(s,'text',{x:cx,y:y(0)-4,'text-anchor':'middle',style:'font-size:10px'},'–');
+    if(i%(narrow?2:2)===(n-1)%2)el(s,'text',{x:cx,y:H-18,'text-anchor':'middle'},k===thisWeek?'now':md(k));});}
+function drawSpark(id,series,color,ticks,unit){const {s,W,H}=canvas(id,140,170);const L=30,R=8,T=30,B=20;const from=series[0][0],to=series[series.length-1][0];
+  const vals=series.map(v=>v[1]);const lo=Math.min(...ticks,...vals)-1,hi=Math.max(...ticks,...vals)+1;
+  const x=d=>L+days(from,d)/Math.max(1,days(from,to))*(W-L-R);const y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
+  axisY(s,ticks,y,L,W-R);el(s,'polyline',{points:series.map(([d,v])=>`${x(d)},${y(v)}`).join(' '),fill:'none',stroke:color,'stroke-width':2});
+  const l=series[series.length-1];el(s,'text',{x:0,y:16,class:'big',style:`fill:${color}`},`${l[1]} ${unit}`);el(s,'text',{x:W-R,y:16,'text-anchor':'end'},md(l[0]));monthTicks(s,from,to,x,H-4);}
+
+function render(){drawSleep();drawLedger();drawTrend();drawComp('fatChart','fat',css('--fat'),[47,49,51,53],46,54);drawComp('leanChart','lean',css('--lean'),[148,150,152],147,153.5);
+  drawSeason();drawHabits();drawSpark('rhrChart',DATA.daily.filter(x=>x.rhr&&x.d>='2026-06-15').map(x=>[x.d,x.rhr]),css('--blue'),[50,54,58],'bpm');
+  drawSpark('hrvChart',DATA.hrv.map(h=>[h.d,h.v]),css('--lean'),[32,38,44],'ms');}
+
+// ---------- sleep rhythm (idea from garmin-grafana's sleep regularity heatmap) ----------
+const clk=h=>{const m=Math.round(((h%24)+24)%24*60);let hh=Math.floor(m/60),mm=m%60;const ap=hh>=12?'pm':'am';hh=hh%12||12;return `${hh}:${String(mm).padStart(2,'0')} ${ap}`;};
+const evDay=r=>(D(r.d).getDay()+6)%7; // day of wake; evening = previous day
+const isWE=r=>{const e=(evDay(r)+6)%7;return e>=3&&e<=5;};
+function drawSleep(){const S=DATA.sleep;if(!S.length)return;const {s,W,H,narrow}=canvas('sleepChart',220,260);const L=48,R=6,T=8,B=22;const sr=narrow?S.slice(-42):S;const n=sr.length;const bw=(W-L-R)/n;
+  const lo=-3,hi=9;const y=h=>T+(h-lo)/(hi-lo)*(H-T-B);
+  [-2,0,2,4,6,8].forEach(h=>{el(s,'line',{x1:L,x2:W-R,y1:y(h),y2:y(h),stroke:css('--grid')});el(s,'text',{x:L-6,y:y(h)+4,'text-anchor':'end'},clk(h).replace(':00',''));});
+  sr.forEach((r,i)=>{el(s,'rect',{x:L+i*bw+bw*.15,y:y(r.bed),width:Math.max(1.5,bw*.7),height:y(r.wake)-y(r.bed),rx:Math.min(2,bw*.3),fill:isWE(r)?css('--gold'):css('--blue'),opacity:.85});});
+  let last='';sr.forEach((r,i)=>{const m=MON[D(r.d).getMonth()];if(m!==last&&D(r.d).getDate()<=7){el(s,'text',{x:L+i*bw,y:H-6},m);last=m;}});}
+(function(){const S=DATA.sleep;if(!S.length){document.getElementById('sleepStats').innerHTML='<span class="note-s">No sleep data yet.</span>';return;}const wk=S.filter(r=>!isWE(r)),we=S.filter(isWE);const avg=(a,k)=>a.reduce((s,r)=>s+r[k],0)/a.length;const sc=a=>a.filter(r=>r.score).reduce((s,r)=>s+r.score,0)/a.filter(r=>r.score).length;
+  document.getElementById('sleepStats').innerHTML=[[clk(avg(wk,'bed'))+' → '+clk(avg(wk,'wake')),`Sun–Wed nights · sleep score ${sc(wk).toFixed(0)}`],[clk(avg(we,'bed'))+' → '+clk(avg(we,'wake')),`Thu–Sat nights · sleep score ${sc(we).toFixed(0)}`]]
+   .map(([a,b])=>`<div class="stat"><b style="font-size:22px">${a}</b><span>${b}</span></div>`).join('')+`<div class="stat" style="grid-column:1/-1"><span>Thu–Sat nights start ${Math.round((avg(we,'bed')-avg(wk,'bed'))*60)} min later and score ${(sc(wk)-sc(we)).toFixed(0)} points lower, lining up with the drinking nights. Data runs to ${md(S[S.length-1].d)}; newer nights need a fresh Garmin export.</span></div>`;})();
+
+// ---------- strength benchmarks (idea from garmin-grafana's strength dashboard) ----------
+const logged={};DATA.workouts.filter(w=>w.sets&&w.sets.length).forEach(w=>w.sets.forEach(s=>{if(!s.lb)return;const e=Math.round(s.lb*(1+s.reps/30));const k=s.ex;if(!logged[k]||e>=logged[k].e1)logged[k]={e1:e,d:w.date,lb:s.lb,reps:s.reps};}));
+const loggedHtml=Object.entries(logged).sort((a,b)=>b[1].e1-a[1].e1).map(([n,v])=>`<li><span class="dot" style="background:var(--lean)"></span><span class="name">${n}</span><span class="when"><b class="num" style="font-size:20px">${v.e1}</b> lb</span><span class="meta">best set ${v.lb} lb × ${v.reps} · ${md(v.d)}</span></li>`).join('');
+if(loggedHtml){document.querySelector('#strength-s .note-s').outerHTML='<p class="note-s" style="margin-top:14px"><b>Logged on the watch</b></p><ul class="sess">'+loggedHtml+'</ul>';}
+document.getElementById('lifts').innerHTML=DATA.liftPlan.map(([n,w,r])=>`<li><span class="dot" style="background:var(--blue)"></span><span class="name">${n}</span><span class="when"><b class="num" style="font-size:20px">${Math.round(w*(1+r/30))}</b> lb</span><span class="meta">${w} lb × ${r} reps</span></li>`).join('');
+
+// ---------- tape check (US Navy formula; idea from openScale) ----------
+const navy=(w,n,h)=>86.010*Math.log10(w-n)-70.041*Math.log10(h)+36.76;
+function tapeLoad(){try{return JSON.parse(localStorage.getItem('tape')||'[]');}catch(e){return [];}}
+function tapeRender(){const L=tapeLoad();document.getElementById('tapeLog').innerHTML=L.slice().reverse().map(e=>`<li><span class="dot" style="background:var(--lean)"></span><span class="name">${e.bf.toFixed(1)}% body fat</span><span class="when">${md(e.d)}</span><span class="meta">waist ${e.w}" · neck ${e.n}" · scale said ${e.scale??'—'}%</span></li>`).join('');}
+document.getElementById('tapeSave').onclick=()=>{const w=+document.getElementById('waist').value,n=+document.getElementById('neck').value,h=+document.getElementById('height').value;const out=document.getElementById('tapeOut');
+  if(!(w>n&&n>0&&h>0)){out.textContent='Enter waist and neck; waist must be larger than neck.';return;}
+  const bf=navy(w,n,h);const e={d:today,w,n,h,bf,scale:lastW.bf};const L=tapeLoad().filter(x=>x.d!==today);L.push(e);try{localStorage.setItem('tape',JSON.stringify(L));}catch(err){}
+  out.innerHTML=`<b>${bf.toFixed(1)}%</b> by tape vs ${lastW.bf}% from the scale on ${md(lastW.d)}. Measure again every 2 weeks; the trend matters more than the gap.`;tapeRender();};
+tapeRender();
+
+render();
+let lastW0=window.innerWidth,rt;window.addEventListener('resize',()=>{if(window.innerWidth===lastW0)return;lastW0=window.innerWidth;clearTimeout(rt);rt=setTimeout(render,150);});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',render);
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+seed_history.json
+.env.local
+site/
+__pycache__/
+*.pyc
