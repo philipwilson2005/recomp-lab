@@ -111,7 +111,7 @@ svg .big{font-family:var(--display);font-size:16px;font-weight:600}
     <h2>Trend weight</h2>
     <p class="sub">Dots are weigh-ins; the line filters out water and sodium. Tap the chart to read a day.</p>
     <div class="panel"><svg class="chart" id="trend"></svg><div class="readout" id="trendRead"></div>
-      <div class="legend"><span><i style="background:var(--ink)"></i>Trend</span><span><i style="background:var(--gold);opacity:.4;height:10px"></i>Cut</span><span><i style="background:var(--lean);opacity:.4;height:10px"></i>Bulk</span></div>
+      <div class="legend"><span><i style="background:var(--ink)"></i>Trend</span><span><i style="background:var(--gold);opacity:.4;height:10px"></i>Cut</span><span><i style="background:var(--lean);opacity:.4;height:10px"></i>Bulk</span><span><i style="background:var(--gold)"></i>Plan to goal</span></div>
     </div>
   </section>
 
@@ -155,7 +155,7 @@ svg .big{font-family:var(--display);font-size:16px;font-weight:600}
 
   <section id="strength-s">
     <h2>Strength benchmarks</h2>
-    <p class="sub">Estimated one-rep max from the weights in your Push/Pull plan (weight × (1 + reps ÷ 30)). These are the numbers the bulk should move.</p>
+    <p class="sub">Estimated one-rep max from the weights in your Push/Pull plan (weight × (1 + reps ÷ 30)). Hold these numbers through the cut; if they hold, the weight coming off is fat.</p>
     <div class="panel"><ul class="sess" id="lifts"></ul>
       <p class="note-s">Your gym sessions are saved on the watch as <b>Cardio</b>, so Garmin records no sets or weights. Start them as <b>Strength</b> instead and log each set; then this section can track real progress per lift.</p></div>
   </section>
@@ -185,6 +185,9 @@ svg .big{font-family:var(--display);font-size:16px;font-weight:600}
 </main>
 <script>
 const DATA = __DATA__;
+// ---------- the plan: edit these three values to change the goal ----------
+const PLAN={start:'2026-11-16',goal:185,by:'2027-05-21',label:'Vegas'};
+(function(){const b=DATA.phases.find(p=>p.name==='Bulk'&&!p.to);if(b&&!DATA.phases.some(p=>p.from===PLAN.start)){const d=new Date(PLAN.start+'T12:00:00');b.to=new Date(d.getTime()-864e5).toISOString().slice(0,10);DATA.phases.push({name:'Cut',from:PLAN.start,to:null});}})();
 const NS='http://www.w3.org/2000/svg';
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const D=s=>new Date(s+'T12:00:00');
@@ -203,18 +206,35 @@ const trend={};(function(){let t=null;const by={};weighins.forEach(x=>by[x.d]=x.
   for(let d=D(weighins[0].d);iso(d)<=weighins[weighins.length-1].d;d=new Date(d.getTime()+864e5)){const k=iso(d);if(by[k]!=null)t=t==null?by[k]:t+0.1*(by[k]-t);trend[k]=t;}})();
 const lastW=weighins[weighins.length-1];
 const bulkStart=DATA.phases.find(p=>p.name==='Bulk').from;
-const intakeDays=Object.entries(DATA.intake).filter(([d,v])=>v!=null&&v>1500&&d>=bulkStart&&d<=lastW.d);
+const cutOn=today>=PLAN.start;
+const cutLogged=Object.entries(DATA.intake).filter(([d,v])=>v!=null&&v>1500&&d>=PLAN.start&&d<=lastW.d).length;
+const winStart=cutLogged>=21&&trend[PLAN.start]!=null?PLAN.start:bulkStart;
+const intakeDays=Object.entries(DATA.intake).filter(([d,v])=>v!=null&&v>1500&&d>=winStart&&d<=lastW.d);
 const avgIntake=intakeDays.reduce((s,[,v])=>s+v,0)/intakeDays.length;
-const bw=weighins.filter(x=>x.d>=bulkStart);
-const xs=bw.map(x=>days(bulkStart,x.d)),ys=bw.map(x=>x.w);
+const bw=weighins.filter(x=>x.d>=winStart);
+const xs=bw.map(x=>days(winStart,x.d)),ys=bw.map(x=>x.w);
 const mx=xs.reduce((a,b)=>a+b)/xs.length,my=ys.reduce((a,b)=>a+b)/ys.length;
 const slope=xs.reduce((s,x,i)=>s+(x-mx)*(ys[i]-my),0)/xs.reduce((s,x)=>s+(x-mx)**2,0);
-const trendSlope=(trend[lastW.d]-trend[bulkStart])/days(bulkStart,lastW.d);
+const trendSlope=(trend[lastW.d]-trend[winStart])/days(winStart,lastW.d);
 const burnLo=avgIntake-Math.max(slope,trendSlope)*3500, burnHi=avgIntake-Math.min(slope,trendSlope)*3500, burnMid=(burnLo+burnHi)/2;
-const gBurns=DATA.daily.filter(x=>x.burn&&x.d>=bulkStart);
+const gBurns=DATA.daily.filter(x=>x.burn&&x.d>=winStart);
 const garmin=gBurns.reduce((s,x)=>s+x.burn,0)/gBurns.length;
 const surplus=avgIntake-burnMid;
-const target=[Math.round((burnMid+250)/50)*50,Math.round((burnMid+400)/50)*50];
+const trendNow=trend[lastW.d];
+const startW=cutOn&&trend[PLAN.start]!=null?trend[PLAN.start]:trendNow;
+const planFrom=cutOn&&trend[PLAN.start]!=null?PLAN.start:(lastW.d>PLAN.start?lastW.d:PLAN.start);
+const planAt=d=>startW-(startW-PLAN.goal)*Math.min(1,Math.max(0,days(planFrom,d)/days(planFrom,PLAN.by)));
+const toGo=trendNow-PLAN.goal;
+const weeksLeft=Math.max(1,days(lastW.d>PLAN.start?lastW.d:PLAN.start,PLAN.by))/7;
+const needRate=Math.max(0,toGo/weeksLeft);            // lb a week still required
+const MAXRATE=1.0,FLOOR=1700;                         // never advise faster than 1 lb a week or under 1,700 calories
+const tLow=Math.round((burnMid-Math.min(needRate,MAXRATE)*500-50)/50)*50;
+const tooFast=needRate>MAXRATE||tLow<FLOOR;
+const target=[Math.max(FLOOR,tLow),Math.max(FLOOR,tLow)+100];
+const deficit=Math.max(0,burnMid-(target[0]+target[1])/2);
+const planRate=deficit/500;
+const gap=trendNow-planAt(lastW.d);                   // + = behind the line
+const goalTxt=`${PLAN.goal} by ${md(PLAN.by)}`;
 const monday=s=>{const d=D(s);const off=(d.getDay()+6)%7;return iso(new Date(d.getTime()-off*864e5));};
 const weekKeys=[];for(let d=D(monday('2026-06-29'));iso(d)<=today;d=new Date(d.getTime()+7*864e5))weekKeys.push(iso(d));
 const lifts={},logs={};
@@ -227,22 +247,29 @@ const past=weekKeys.filter(k=>k!==thisWeek&&k>=monday(bulkStart));const hitWeeks
 let liftGap=0;for(let i=weekKeys.length-1;i>=0;i--){if(weekKeys[i]===thisWeek)continue;if((lifts[weekKeys[i]]||0)===0)liftGap++;else break;}
 
 // ---------- static text ----------
-document.getElementById('asof').textContent=`Updated ${md(today)}, bulk day ${days(bulkStart,today)+1}`;
-document.getElementById('verdict').textContent=surplus>150?`The bulk is running a real surplus of about ${fmt(surplus)} calories a day.`
-  :surplus>-300?`So far the bulk is running at maintenance, not a surplus.`:`The bulk is running a deficit of about ${fmt(-surplus)} calories a day.`;
-document.getElementById('verdictSub').textContent=`Across ${intakeDays.length} fully logged days since ${md(bulkStart)} you averaged ${fmt(avgIntake)} calories, and trend weight moved ${(trend[lastW.d]-trend[bulkStart]).toFixed(1)} lbs. That puts your real daily burn near ${fmt(burnMid)}. Garmin estimates ${fmt(garmin)}, about ${Math.round((garmin/burnMid-1)*100)}% high. The 2,200 target assumed maintenance was about 1,850; the data says it's closer to ${fmt(burnMid)}.`;
+document.getElementById('asof').textContent=cutOn?`Updated ${md(today)}, cut day ${days(PLAN.start,today)+1}`:`Updated ${md(today)}, cut starts ${md(PLAN.start)}`;
+document.getElementById('verdict').textContent=toGo<=0?`Goal reached: trend weight is at or under ${PLAN.goal}.`
+  :!cutOn?`The cut starts ${md(PLAN.start)}: ${toGo.toFixed(1)} lbs to lose for ${goalTxt}.`
+  :days(PLAN.start,lastW.d)<7?`Cut week one: ${toGo.toFixed(1)} lbs to go for ${goalTxt}.`
+  :gap>1?`You are ${gap.toFixed(1)} lbs behind the line to ${goalTxt}.`
+  :gap<-1?`You are ${(-gap).toFixed(1)} lbs ahead of the line to ${goalTxt}.`
+  :`On pace for ${goalTxt}.`;
+document.getElementById('verdictSub').textContent=`Across ${intakeDays.length} fully logged days since ${md(winStart)} you averaged ${fmt(avgIntake)} calories, and trend weight moved ${(trend[lastW.d]-trend[winStart]).toFixed(1)} lbs. That puts your real daily burn near ${fmt(burnMid)}. Garmin estimates ${fmt(garmin)}, about ${Math.round((garmin/burnMid-1)*100)}% high. Reaching ${goalTxt} needs ${needRate.toFixed(2)} lb a week from here, a deficit of about ${fmt(needRate*500)} calories a day.${tooFast?' That is more than a sensible cut, so the calorie target is held at 1 lb a week and never below 1,700; move the date or the goal.':''} The burn figure switches to cut-only data once the cut has 21 logged days.`;
 document.getElementById('heroStats').innerHTML=[
- [`${fmt(target[0])}–${fmt(target[1])}`,`calories a day for a real lean bulk`],
+ [`${fmt(target[0])}–${fmt(target[1])}`,`calories a day for ${goalTxt}`],
  [`${lifts[thisWeek]||0} of 2`,`lifts this week; last one ${md(lastLift)}`],
  [`${trend[lastW.d].toFixed(1)}`,`trend weight (last weigh-in ${md(lastW.d)})`],
- [`${(trend[lastW.d]-203.3).toFixed(1)}`,`lbs since the cut began Apr 14`]
+ [`${Math.max(0,toGo).toFixed(1)}`,`lbs to go; needs ${needRate.toFixed(2)} lb a week`]
 ].map(([a,b])=>`<div class="stat"><b>${a}</b><span>${b}</span></div>`).join('');
 const fr=[[`Weigh-in ${days(lastW.d,today)}d ago`,days(lastW.d,today)>3],[`Food log ${days(lastLog,today)}d ago`,days(lastLog,today)>3],[`Last lift ${days(lastLift,today)}d ago`,days(lastLift,today)>7]];
 document.getElementById('fresh').innerHTML=fr.map(([t,st])=>`<span class="chip ${st?'stale':'ok'}">${t}</span>`).join('');
 const moves=[];
-if(surplus<150)moves.push([`Eat ${fmt(target[0])}–${fmt(target[1])} a day, not 2,200.`,`2,200 has been maintenance or just under. Add the extra as carbs around lifting days; keep protein at 180–190 g. Trend weight should then rise 0.25–0.5 lb a week.`]);
-moves.push(liftGap>=1?[`Book two lifts this week.`,`${liftGap} full week${liftGap>1?'s':''} without lifting since ${md(lastLift)}; 2-a-week was hit in ${hitWeeks} of ${past.length} weeks. Without it, a surplus mostly adds fat.`]:[`Keep the 2-a-week lifting rhythm.`,`It's the lever for the lean-mass goal.`]);
-if(days(lastW.d,today)>3||days(lastLog,today)>3)moves.push([`Send a scale export and a Garmin export.`,`Weigh-ins are ${days(lastW.d,today)} days old and the food log ${days(lastLog,today)}. October is when the climb usually starts.`]);
+const recent=Object.entries(DATA.intake).filter(([d,v])=>v!=null&&v>1500).sort((a,b)=>a[0]<b[0]?1:-1).slice(0,7);
+const recentAvg=recent.length?recent.reduce((s,[,v])=>s+v,0)/recent.length:null;
+if(toGo>0)moves.push([`Eat ${fmt(target[0])}–${fmt(target[1])} a day.`,`That is about ${fmt(deficit)} below your measured burn of ${fmt(burnMid)}.${recentAvg?` Your last ${recent.length} logged days averaged ${fmt(recentAvg)}.`:''} Keep protein at 180–190 g. Trend weight should fall about ${planRate.toFixed(2)} lb a week.${tooFast?` The date needs ${needRate.toFixed(2)}, which is faster than this plan allows, so the target is capped; expect to land after ${md(PLAN.by)} or adjust the goal.`:''}`]);
+moves.push(liftGap>=1?[`Book two lifts this week.`,`${liftGap} full week${liftGap>1?'s':''} without lifting since ${md(lastLift)}; 2-a-week was hit in ${hitWeeks} of ${past.length} weeks. In a cut, lifting is what keeps the weight you lose from being muscle.`]:[`Keep the 2-a-week lifting rhythm.`,`It protects lean mass while the scale comes down.`]);
+if(cutOn&&gap>1)moves.push([`Budget Thursday to Saturday.`,`You are ${gap.toFixed(1)} lbs behind the line. Those three nights are where sleep scores drop and the weekly deficit is most likely to leak.`]);
+if(days(lastW.d,today)>3||days(lastLog,today)>3)moves.push([`Weigh in and log food.`,`Weigh-ins are ${days(lastW.d,today)} days old and the food log ${days(lastLog,today)}. The pace check needs both.`]);
 document.getElementById('moves').innerHTML=moves.map(([a,b])=>`<li><strong>${a}</strong>${b}</li>`).join('');
 const kindColor=()=>({lift:css('--blue'),cardio:css('--lean'),walk:css('--faint')});
 const item=w=>`<li><span class="dot" style="background:${kindColor()[w.kind]}"></span><span class="name">${w.type}</span><span class="when">${md(w.date)}</span><span class="meta">${w.duration} min · ${w.cal??'—'} cal${w.avgHR?` · HR ${w.avgHR}/${w.maxHR}`:''}</span></li>`;
@@ -268,11 +295,12 @@ function drawLedger(){const {s,W,H,narrow}=canvas('ledger',128,140);
   mark(avgIntake,'you eat',css('--ink'),true);mark(garmin,'Garmin says',css('--fat'),true);mark(burnMid,'you burn',css('--lean'),false);}
 function drawTrend(){const {s,W,H,narrow}=canvas('trend',230,300);const L=34,R=10,T=12,B=24;const from=narrow?'2026-06-01':'2026-04-01',to=today>lastW.d?today:lastW.d;
   const x=d=>L+days(from,d)/days(from,to)*(W-L-R);const pts=Object.entries(trend).filter(([d])=>d>=from);const wv=weighins.filter(w=>w.d>=from).map(w=>w.w);
-  const lo=Math.floor(Math.min(...wv)-1),hi=Math.ceil(Math.max(...wv)+1);const y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
-  DATA.phases.forEach(p=>{const a=p.from<from?from:p.from,b=p.to||to;if(b>=from)el(s,'rect',{x:x(a),y:T,width:x(b)-x(a),height:H-T-B,fill:p.name==='Cut'?css('--gold'):css('--lean'),opacity:.1});});
+  const planTo=to>planFrom?to:null;const lo=Math.floor(Math.min(...wv,planTo?planAt(planTo):Infinity)-1),hi=Math.ceil(Math.max(...wv)+1);const y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
+  DATA.phases.forEach(p=>{const a=p.from<from?from:p.from,b=p.to&&p.to<to?p.to:to;if(b>=from&&b>a)el(s,'rect',{x:x(a),y:T,width:x(b)-x(a),height:H-T-B,fill:p.name==='Cut'?css('--gold'):css('--lean'),opacity:.1});});
   const step=(hi-lo)>8?2:1;const ticks=[];for(let t=lo+1;t<hi;t+=step)ticks.push(t);axisY(s,ticks,y,L,W-R);
   weighins.filter(w=>w.d>=from).forEach(w=>el(s,'circle',{cx:x(w.d),cy:y(w.w),r:narrow?2.2:2.6,fill:css('--faint')}));
   el(s,'polyline',{points:pts.map(([d,v])=>`${x(d)},${y(v)}`).join(' '),fill:'none',stroke:css('--ink'),'stroke-width':2.4,'stroke-linejoin':'round'});
+  if(planTo)el(s,'line',{x1:x(planFrom),x2:x(planTo),y1:y(planAt(planFrom)),y2:y(planAt(planTo)),stroke:css('--gold'),'stroke-width':2,'stroke-dasharray':'6 4'});
   if(days(lastW.d,today)>2)el(s,'line',{x1:x(lastW.d),x2:x(today),y1:y(trend[lastW.d]),y2:y(trend[lastW.d]),stroke:css('--faint'),'stroke-dasharray':'3 4'});
   el(s,'circle',{cx:x(lastW.d),cy:y(trend[lastW.d]),r:4.5,fill:css('--ink')});
   monthTicks(s,from,to,x,H-6);
@@ -283,11 +311,12 @@ function drawTrend(){const {s,W,H,narrow}=canvas('trend',230,300);const L=34,R=1
   s.onpointerdown=e=>show(e.clientX);s.onpointermove=e=>{if(e.pointerType==='mouse'||e.buttons)show(e.clientX);};
   out.innerHTML=`<b>${md(lastW.d)}</b>: trend ${trend[lastW.d].toFixed(1)}, weighed ${lastW.w}${days(lastW.d,today)>2?` — no weigh-ins since`:''}`;}
 function drawComp(id,key,color,ticks,lo,hi){const {s,W,H,narrow}=canvas(id,160,190);const L=32,R=8,T=34,B=22;const ser=rolling(key);const from=narrow?'2026-06-01':'2026-04-01';const sr=ser.filter(([d])=>d>=from);const to=sr[sr.length-1][0];
+  const vs=sr.map(v=>v[1]);lo=Math.floor(Math.min(...vs))-1;hi=Math.ceil(Math.max(...vs))+1;const st=(hi-lo)>12?4:2;ticks=[];for(let t=Math.ceil((lo+.5)/st)*st;t<hi;t+=st)ticks.push(t);
   const x=d=>L+days(from,d)/days(from,to)*(W-L-R);const y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
-  DATA.phases.forEach(p=>{const a=p.from<from?from:p.from,b=p.to&&p.to<to?p.to:to;if(b>=a)el(s,'rect',{x:x(a),y:T,width:x(b)-x(a),height:H-T-B,fill:p.name==='Cut'?css('--gold'):css('--lean'),opacity:.08});});
+  DATA.phases.forEach(p=>{const a=p.from<from?from:p.from,b=p.to&&p.to<to?p.to:to;if(b>a)el(s,'rect',{x:x(a),y:T,width:x(b)-x(a),height:H-T-B,fill:p.name==='Cut'?css('--gold'):css('--lean'),opacity:.08});});
   axisY(s,ticks,y,L,W-R);el(s,'polyline',{points:sr.map(([d,v])=>`${x(d)},${y(v)}`).join(' '),fill:'none',stroke:color,'stroke-width':2.4});
-  const l=ser[ser.length-1],b0=ser.find(([d])=>d>=bulkStart);el(s,'text',{x:0,y:16,class:'big',style:`fill:${color}`},`${l[1].toFixed(1)} lbs`);
-  el(s,'text',{x:W-R,y:16,'text-anchor':'end'},`${(l[1]-b0[1]>=0?'+':'')+(l[1]-b0[1]).toFixed(1)} since bulk began`);monthTicks(s,from,to,x,H-4);}
+  const l=ser[ser.length-1],cutRef=cutOn&&ser.find(([d])=>d>=PLAN.start),b0=cutRef||ser.find(([d])=>d>=bulkStart);el(s,'text',{x:0,y:16,class:'big',style:`fill:${color}`},`${l[1].toFixed(1)} lbs`);
+  el(s,'text',{x:W-R,y:16,'text-anchor':'end'},`${(l[1]-b0[1]>=0?'+':'')+(l[1]-b0[1]).toFixed(1)} since ${cutRef?'cut':'bulk'} began`);monthTicks(s,from,to,x,H-4);}
 function drawSeason(){const {s,W,H,narrow}=canvas('season',250,320);const L=34,R=narrow?40:60,T=12,B=24;const months=['Jul','Aug','Sep','Oct','Nov','Dec','Jan'];
   const x=i=>L+i/6*(W-L-R);const lo=186,hi=210;const y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
   axisY(s,narrow?[190,198,206]:[188,192,196,200,204,208],y,L,W-R);months.forEach((m,i)=>el(s,'text',{x:x(i),y:H-6,'text-anchor':'middle'},m));
