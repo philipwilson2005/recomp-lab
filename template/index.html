@@ -92,7 +92,7 @@ svg .big{font-family:var(--display);font-size:16px;font-weight:600}
 <body>
 <main>
   <div class="head"><h1>Recomp Lab</h1><div class="asof" id="asof"></div></div>
-  <nav aria-label="Sections"><a href="#moves-s">This week</a><a href="#trend-s">Trend</a><a href="#comp-s">Fat vs lean</a><a href="#season-s">Fall</a><a href="#habits-s">Habits</a><a href="#recovery-s">Recovery</a><a href="#sleep-s">Sleep</a><a href="#strength-s">Strength</a><a href="#tape-s">Tape check</a><a href="#sessions-s">Sessions</a></nav>
+  <nav aria-label="Sections"><a href="#moves-s">This week</a><a href="#trend-s">Trend</a><a href="#comp-s">Fat vs lean</a><a href="#season-s">Fall</a><a href="#habits-s">Habits</a><a href="#steps-s">Steps</a><a href="#recovery-s">Recovery</a><a href="#sleep-s">Sleep</a><a href="#strength-s">Strength</a><a href="#tape-s">Tape check</a><a href="#sessions-s">Sessions</a></nav>
 
   <p class="verdict" id="verdict"></p>
   <div class="panel">
@@ -135,6 +135,14 @@ svg .big{font-family:var(--display);font-size:16px;font-weight:600}
     <p class="sub">Per week, Monday to Sunday. Targets: 2 lifts, 5 logged days.</p>
     <div class="panel"><svg class="chart" id="habits"></svg>
       <div class="legend"><span><i style="background:var(--blue);height:10px"></i>Lifts</span><span><i style="background:var(--gold);height:10px"></i>Days logged</span></div>
+    </div>
+  </section>
+
+  <section id="steps-s">
+    <h2>Daily steps</h2>
+    <p class="sub">Weekly average, Monday to Sunday, today left out until it's finished. Goal 10,000; 8,000 is the realistic floor.</p>
+    <div class="panel"><svg class="chart" id="stepsChart"></svg><div class="stats" id="stepStats"></div>
+      <div class="legend"><span><i style="background:var(--lean);height:10px"></i>At or above 8,000</span><span><i style="background:var(--gold);height:10px"></i>Under 8,000</span><span><i style="background:var(--ink2)"></i>10,000 goal</span></div>
     </div>
   </section>
 
@@ -263,6 +271,12 @@ document.getElementById('heroStats').innerHTML=[
 ].map(([a,b])=>`<div class="stat"><b>${a}</b><span>${b}</span></div>`).join('');
 const fr=[[`Weigh-in ${days(lastW.d,today)}d ago`,days(lastW.d,today)>3],[`Food log ${days(lastLog,today)}d ago`,days(lastLog,today)>3],[`Last lift ${days(lastLift,today)}d ago`,days(lastLift,today)>7]];
 document.getElementById('fresh').innerHTML=fr.map(([t,st])=>`<span class="chip ${st?'stale':'ok'}">${t}</span>`).join('');
+// ---------- steps ----------
+const stepByDay={};DATA.daily.forEach(x=>{if(x.steps!=null&&x.d<today)stepByDay[x.d]=x.steps;});
+const stepDays=Object.keys(stepByDay).filter(d=>days(d,today)<=7).sort();
+const stepRecent=stepDays.length>=3?stepDays.reduce((s,d)=>s+stepByDay[d],0)/stepDays.length:null;
+const stepWeek={};Object.entries(stepByDay).forEach(([d,v])=>{const k=monday(d);(stepWeek[k]=stepWeek[k]||[]).push(v);});
+const stepAvg=k=>stepWeek[k]&&stepWeek[k].length?stepWeek[k].reduce((a,b)=>a+b,0)/stepWeek[k].length:null;
 const moves=[];
 const recent=Object.entries(DATA.intake).filter(([d,v])=>v!=null&&v>1500).sort((a,b)=>a[0]<b[0]?1:-1).slice(0,7);
 const recentAvg=recent.length?recent.reduce((s,[,v])=>s+v,0)/recent.length:null;
@@ -270,6 +284,7 @@ if(toGo>0)moves.push([`Eat ${fmt(target[0])}–${fmt(target[1])} a day.`,`That i
 moves.push(liftGap>=1?[`Book two lifts this week.`,`${liftGap} full week${liftGap>1?'s':''} without lifting since ${md(lastLift)}; 2-a-week was hit in ${hitWeeks} of ${past.length} weeks. In a cut, lifting is what keeps the weight you lose from being muscle.`]:[`Keep the 2-a-week lifting rhythm.`,`It protects lean mass while the scale comes down.`]);
 if(cutOn&&gap>1)moves.push([`Budget Thursday to Saturday.`,`You are ${gap.toFixed(1)} lbs behind the line. Those three nights are where sleep scores drop and the weekly deficit is most likely to leak.`]);
 if(days(lastW.d,today)>3||days(lastLog,today)>3)moves.push([`Weigh in and log food.`,`Weigh-ins are ${days(lastW.d,today)} days old and the food log ${days(lastLog,today)}. The pace check needs both.`]);
+if(stepRecent!=null&&stepRecent<8000&&cutOn)moves.push([`Walk ${fmt(Math.round((8000-stepRecent)/500)*500)} more steps a day.`,`Your last ${stepDays.length} days averaged ${fmt(stepRecent)} steps. Getting to 8,000 burns about ${fmt((8000-stepRecent)*0.045)} more calories a day${(8000-stepRecent)*0.045>=80?`, about what the plan's next 100-calorie cut would do, without eating less`:''}.`]);
 document.getElementById('moves').innerHTML=moves.map(([a,b])=>`<li><strong>${a}</strong>${b}</li>`).join('');
 const kindColor=()=>({lift:css('--blue'),cardio:css('--lean'),walk:css('--faint')});
 const item=w=>`<li><span class="dot" style="background:${kindColor()[w.kind]}"></span><span class="name">${w.type}</span><span class="when">${md(w.date)}</span><span class="meta">${w.duration} min · ${w.cal??'—'} cal${w.avgHR?` · HR ${w.avgHR}/${w.maxHR}`:''}</span></li>`;
@@ -338,6 +353,19 @@ function drawHabits(){const {s,W,H,narrow}=canvas('habits',200,240);const L=22,R
     if(b)el(s,'rect',{x:cx+2,y:y(b),width:w,height:y(0)-y(b),rx:3,fill:css('--gold')});
     if(!a&&!b)el(s,'text',{x:cx,y:y(0)-4,'text-anchor':'middle',style:'font-size:10px'},'–');
     if(i%(narrow?2:2)===(n-1)%2)el(s,'text',{x:cx,y:H-18,'text-anchor':'middle'},k===thisWeek?'now':md(k));});}
+function drawSteps(){const {s,W,H,narrow}=canvas('stepsChart',190,220);const L=34,R=6,T=10,B=34;const keys=(narrow?weekKeys.slice(-8):weekKeys.slice(-16));const n=keys.length;const bw=(W-L-R)/n;
+  const vals=keys.map(stepAvg).filter(v=>v!=null);const hi=Math.max(12000,...vals.map(v=>Math.ceil(v/2000)*2000));const y=v=>T+(1-v/hi)*(H-T-B);
+  for(let t=0;t<=hi;t+=hi>14000?4000:2000){el(s,'line',{x1:L,x2:W-R,y1:y(t),y2:y(t),stroke:css('--grid')});el(s,'text',{x:L-5,y:y(t)+4,'text-anchor':'end'},t?t/1000+'k':'0');}
+  el(s,'line',{x1:L,x2:W-R,y1:y(10000),y2:y(10000),stroke:css('--ink2'),'stroke-dasharray':'5 4'});
+  keys.forEach((k,i)=>{const cx=L+i*bw+bw/2;const v=stepAvg(k);const w=Math.min(22,bw*.55);
+    if(v!=null){el(s,'rect',{x:cx-w/2,y:y(v),width:w,height:y(0)-y(v),rx:3,fill:v>=8000?css('--lean'):css('--gold')});
+      if(!narrow||i>=n-4)el(s,'text',{x:cx,y:y(v)-4,'text-anchor':'middle',style:'font-size:10px'},(v/1000).toFixed(1)+'k');}
+    else el(s,'text',{x:cx,y:y(0)-4,'text-anchor':'middle',style:'font-size:10px'},'–');
+    if(i%2===(n-1)%2)el(s,'text',{x:cx,y:H-18,'text-anchor':'middle'},k===thisWeek?'now':md(k));});}
+(function(){const box=document.getElementById('stepStats');if(stepRecent==null){box.innerHTML='<span class="note-s">Not enough step data yet.</span>';return;}
+  const gap=Math.max(0,10000-stepRecent),hit=stepDays.filter(d=>stepByDay[d]>=10000).length;
+  box.innerHTML=[[fmt(stepRecent),`average steps, last ${stepDays.length} days`],[`${hit} of ${stepDays.length}`,`days at 10,000 or more`],[gap?`−${fmt(gap*0.045)}`:'on goal',gap?`calories a day vs. 10,000 steps (about 45 per 1,000)`:`you're averaging 10,000+`]]
+   .map(([a,b])=>`<div class="stat"><b>${a}</b><span>${b}</span></div>`).join('');})();
 function drawSpark(id,series,color,ticks,unit){const {s,W,H}=canvas(id,140,170);const L=30,R=8,T=30,B=20;const from=series[0][0],to=series[series.length-1][0];
   const vals=series.map(v=>v[1]);const lo=Math.min(...ticks,...vals)-1,hi=Math.max(...ticks,...vals)+1;
   const x=d=>L+days(from,d)/Math.max(1,days(from,to))*(W-L-R);const y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
@@ -345,7 +373,7 @@ function drawSpark(id,series,color,ticks,unit){const {s,W,H}=canvas(id,140,170);
   const l=series[series.length-1];el(s,'text',{x:0,y:16,class:'big',style:`fill:${color}`},`${l[1]} ${unit}`);el(s,'text',{x:W-R,y:16,'text-anchor':'end'},md(l[0]));monthTicks(s,from,to,x,H-4);}
 
 function render(){drawSleep();drawLedger();drawTrend();drawComp('fatChart','fat',css('--fat'),[47,49,51,53],46,54);drawComp('leanChart','lean',css('--lean'),[148,150,152],147,153.5);
-  drawSeason();drawHabits();drawSpark('rhrChart',DATA.daily.filter(x=>x.rhr&&x.d>='2026-06-15').map(x=>[x.d,x.rhr]),css('--blue'),[50,54,58],'bpm');
+  drawSeason();drawHabits();drawSteps();drawSpark('rhrChart',DATA.daily.filter(x=>x.rhr&&x.d>='2026-06-15').map(x=>[x.d,x.rhr]),css('--blue'),[50,54,58],'bpm');
   drawSpark('hrvChart',DATA.hrv.map(h=>[h.d,h.v]),css('--lean'),[32,38,44],'ms');}
 
 // ---------- sleep rhythm (idea from garmin-grafana's sleep regularity heatmap) ----------
